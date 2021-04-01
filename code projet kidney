@@ -1,0 +1,314 @@
+NP <-  #nombre de patients
+  38
+N_uc <-  
+  58
+N_rc <-
+  18
+t_uc <-
+  c(8, 23, 22, 447, 30, 24, 7, 511, 53, 15, 7, 141, 96, 536, 17, 
+    185, 292, 15, 152, 402, 13, 39, 12, 132, 34, 2, 130, 27, 152, 
+    190, 119, 63, 16, 28, 318, 12, 245, 9, 30, 196, 154, 333, 38, 
+    177, 114, 562, 66, 40, 201, 156, 30, 25, 26, 58, 43, 30, 8, 78
+  )
+t_rc <-
+  c(149, 22, 113, 5, 54, 6, 13, 8, 70, 25, 4, 159, 108, 24, 46, 
+    5, 16, 8) #cens=2
+age_uc <-
+  c(28, 48, 32, 31, 10, 16, 51, 55, 69, 51, 44, 34, 35, 17, 60, 
+    60, 43, 44, 46, 30, 62, 42, 43, 10, 52, 53, 54, 56, 57, 44, 22, 
+    60, 28, 32, 32, 10, 17, 51, 56, 69, 52, 44, 35, 60, 44, 47, 63, 
+    43, 58, 10, 52, 53, 54, 56, 51, 57, 22, 52)
+age_rc <-
+  c(42, 53, 57, 50, 42, 52, 48, 34, 42, 17, 60, 53, 44, 30, 43, 
+    45, 42, 60)
+sex_uc <-
+  c(0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
+    1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 
+    1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1)
+sex_rc <-
+  c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0)
+patient_uc <-
+  c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 
+    16, 17, 18, 20, 21, 22, 23, 24, 25, 27, 28, 29, 30, 
+    31, 33, 34, 35, 38, 1, 3, 4, 5, 6, 7, 8, 9, 10, 
+    11, 13, 17, 18, 21, 23, 25, 26, 27, 28, 29, 30, 31, 
+    32, 33, 35, 37)
+patient_rc <-
+  c(14, 19, 26, 32, 36, 37, 2, 12, 14, 15, 16, 19, 
+    20, 22, 24, 34, 36, 38)
+disease_uc <-
+  c(1, 2, 1, 1, 1, 1, 2, 2, 3, 2, 3, 1, 3, 1, 3, 1, 1, 1, 4, 1, 
+    3, 3, 3, 2, 3, 2, 2, 3, 4, 2, 1, 4, 1, 1, 1, 1, 1, 2, 2, 3, 2, 
+    3, 3, 1, 1, 4, 3, 3, 3, 2, 3, 2, 2, 3, 3, 4, 1, 4)
+disease_rc <-
+  c(3, 2, 3, 3, 1, 4, 2, 1, 3, 1, 3, 2, 1, 1, 3, 2, 1, 4)
+
+calcul.mu=function(j,alpha,beta.age,beta.sex,beta.dis,b){
+  if (j==1){
+    a=rep(alpha,58)+beta.age*age_uc+beta.sex*sex_uc+beta.dis[1]*(disease_uc==2)*2+beta.dis[2]*(disease_uc==3)*3+beta.dis[3]*(disease_uc==4)*4+b[1:58]
+  }else{
+    a=rep(alpha,18)+beta.age*age_rc+beta.sex*sex_rc+beta.dis[1]*(disease_rc==2)*2+beta.dis[2]*(disease_rc==3)*3+beta.dis[3]*(disease_rc==4)*4+b[59:76]
+  }
+  return(exp(a))
+}
+calcul.mu(1,0.90,0.3,0.5,c(0.56,0.57,0.84),rnorm(N_uc,0,1))
+
+
+
+
+kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
+                   patient_uc, patient_rc,disease_uc,disease_rc,
+                   nchain = 10^4, 
+                   prop.sd = c(0.9,0.56,0.57,0.84,0.5,0.17,0.38, 0.5)){
+
+  
+  moyage<-log(mean(c(age_uc,age_rc))) 
+  moysex<-mean(c(sex_uc,sex_rc))
+  moyt<-log(mean(c(t_rc,t_uc)))
+  moydisease<-mean(c(disease_rc,disease_uc))
+  
+  #initialisation de alpha
+  chain.alpha= matrix(NA,nchain+1,1)
+  init.alpha=moyt
+  acc.rates.alpha=0
+  chain.alpha[1] <- init.alpha
+  prop.sd.alpha=prop.sd[1]
+  
+  #initialisation des beta.dis
+  chain.beta.dis= matrix(NA,nchain+1,3)
+  init.beta.dis=rep(moydisease,3)
+  acc.rates.beta.dis=rep(0,3)
+  chain.beta.dis[1,] <- init.beta.dis
+  prop.sd.beta.dis=c(prop.sd[2],prop.sd[3],prop.sd[4])
+
+  
+  #initialisation de beta.sex
+  chain.beta.sex= matrix(NA,nchain+1,1)
+  init.beta.sex=moysex
+  acc.rates.beta.sex=0
+  chain.beta.sex[1] <- init.beta.sex
+  prop.sd.beta.sex=prop.sd[5]
+ 
+  #initialisation de beta.age
+  chain.beta.age= matrix(NA,nchain+1,1)
+  init.beta.age=moyage
+  acc.rates.beta.age=0
+  chain.beta.age[1] <- init.beta.age
+  prop.sd.beta.age=prop.sd[5]
+  
+  #initialisation de r
+  chain.r= matrix(NA,nchain+1,1)
+  init.r=1#pas sur
+  acc.rates.r=0
+  chain.r[1] <- init.r
+  prop.sd.r=prop.sd[6] 
+  
+  #initialisation de tau
+  chain.tau= matrix(NA,nchain+1,1)
+  init.tau=1
+  acc.rates.tau=0
+  chain.tau[1] <- init.tau
+  prop.sd.tau=prop.sd[7] 
+  
+  #initialisation de b
+  chain.b= matrix(NA,nchain+1,NP*2)
+  init.b=rnorm(NP*2,0,1/sqrt(init.tau))
+  acc.rates.b=rep(0,NP*2)
+  chain.b[1,] <- init.b
+  prop.sd.b=prop.sd[8]
+  
+
+  
+  
+    
+  for (iter in 1:nchain){
+    current.alpha = chain.alpha[iter]
+    current.beta.dis=chain.beta.dis[iter,]
+    current.beta.sex=chain.beta.sex[iter]
+    current.beta.age=chain.beta.age[iter]
+    current.r=chain.r[iter]
+    current.tau=chain.tau[iter]
+    current.b=chain.b[iter,]
+
+    
+    #maj de alpha
+    prop.alpha=rnorm(1,current.alpha, prop.sd.alpha)
+    mu1=calcul.mu(1,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+    mu1.prop=calcul.mu(1,prop.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+    mu2=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+    mu2.prop=calcul.mu(2,prop.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+    
+    
+
+    top=sum(dweibull(t_uc, current.r, mu1.prop, log=TRUE))+dnorm(prop.alpha, 0, 1/sqrt(0.0001), log = TRUE)+
+      sum(dweibull(t_rc, current.r, mu2.prop, log=TRUE))+dnorm(prop.alpha, 0, 1/sqrt(0.0001),log = TRUE)
+    
+    bottom=sum(dweibull(t_uc, current.r, mu1, log=TRUE))+dnorm(current.alpha, 0, 1/sqrt(0.0001),log = TRUE)+
+      sum(dweibull(t_rc, current.r, mu2, log=TRUE))+dnorm(current.alpha, 0, 1/sqrt(0.0001),log = TRUE)
+    acc_prob.alpha <- min(1,exp(top - bottom))
+    if (runif(1) < acc_prob.alpha){
+      current.alpha <- prop.alpha
+      acc.rates.alpha <- acc.rates.alpha + 1
+      
+    }    
+    chain.alpha[iter+1]=current.alpha
+    
+    #maj de beta.sex
+    prop.beta.sex=rnorm(1,current.beta.sex, prop.sd.beta.sex)
+    mu1=calcul.mu(1,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+    mu1.prop=calcul.mu(1,current.alpha,current.beta.age,prop.beta.sex,current.beta.dis,current.b)
+    mu2=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+    mu2.prop=calcul.mu(2,current.alpha,current.beta.age,prop.beta.sex,current.beta.dis,current.b)
+    
+    
+    
+    top=sum(dweibull(t_uc, current.r, mu1.prop, log=TRUE))+dnorm(prop.beta.sex, 0, 1/sqrt(0.0001), log = TRUE)+
+      sum(dweibull(t_rc, current.r, mu2.prop, log=TRUE))+dnorm(prop.beta.sex, 0, 1/sqrt(0.0001),log = TRUE)
+    
+    bottom=sum(dweibull(t_uc, current.r, mu1, log=TRUE))+dnorm(current.beta.sex, 0, 1/sqrt(0.0001),log = TRUE)+
+      sum(dweibull(t_rc, current.r, mu2, log=TRUE))+dnorm(current.beta.sex, 0, 1/sqrt(0.0001),log = TRUE)
+    acc_prob.beta.sex <- min(1,exp(top - bottom))
+    if (runif(1) < acc_prob.beta.sex){
+      current.beta.sex <- prop.beta.sex
+      acc.rates.beta.sex <- acc.rates.beta.sex + 1
+      
+    }    
+    chain.beta.sex[iter+1]=current.beta.sex
+    
+    #maj de beta.age
+    prop.beta.age=rnorm(1,current.beta.age, prop.sd.beta.age)
+    mu1=calcul.mu(1,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+    mu1.prop=calcul.mu(1,current.alpha,prop.beta.age,current.beta.sex,current.beta.dis,current.b)
+    mu2=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+    mu2.prop=calcul.mu(2,current.alpha,prop.beta.age,current.beta.sex,current.beta.dis,current.b)
+    
+    
+    
+    top=sum(dweibull(t_uc, current.r, mu1.prop, log=TRUE))+dnorm(prop.beta.age, 0, 1/sqrt(0.0001), log = TRUE)+
+      sum(dweibull(t_rc, current.r, mu2.prop, log=TRUE))+dnorm(prop.beta.age, 0, 1/sqrt(0.0001),log = TRUE)
+    
+    bottom=sum(dweibull(t_uc, current.r, mu1, log=TRUE))+dnorm(current.beta.age, 0, 1/sqrt(0.0001),log = TRUE)+
+      sum(dweibull(t_rc, current.r, mu2, log=TRUE))+dnorm(current.beta.age, 0, 1/sqrt(0.0001),log = TRUE)
+    
+    acc_prob.beta.age <- min(1,exp(top - bottom))
+    if (runif(1) < acc_prob.beta.age){
+      current.beta.age <- prop.beta.age
+      acc.rates.beta.age <- acc.rates.beta.age + 1
+      
+    }   
+    
+    chain.beta.age[iter+1]=current.beta.age
+    
+    #mise à jour de beta.dis
+    for (k in 1:3){ #ici j=1,2,3
+      prop.beta.dis=current.beta.dis
+      prop.beta.dis[k]=rnorm(1,current.beta.dis[k], prop.sd.beta.dis[k])
+      
+      mu1=calcul.mu(1,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+      mu1.prop=calcul.mu(1,current.alpha,current.beta.age,current.beta.sex,prop.beta.dis,current.b)
+      mu2=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+      mu2.prop=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,prop.beta.dis,current.b)
+      
+      top=sum(dweibull(t_uc, current.r, mu1.prop, log=TRUE))+dnorm(prop.beta.dis[k], 0, 1/sqrt(0.0001), log = TRUE)+
+        sum(dweibull(t_rc, current.r, mu2.prop, log=TRUE))+dnorm(prop.beta.dis[k], 0, 1/sqrt(0.0001),log = TRUE)
+      
+      bottom=sum(dweibull(t_uc, current.r, mu1, log=TRUE))+dnorm(current.beta.dis[k], 0, 1/sqrt(0.0001),log = TRUE)+
+        sum(dweibull(t_rc, current.r, mu2, log=TRUE))+dnorm(current.beta.dis[k], 0, 1/sqrt(0.0001),log = TRUE)
+      
+      acc_prob.beta.dis <- min(1,exp(top - bottom))
+      
+      if (runif(1) < acc_prob.beta.dis){
+        current.beta.dis <- prop.beta.dis
+        acc.rates.beta.dis[k] <- acc.rates.beta.dis[k] + 1
+        
+      }
+    }
+    
+    chain.beta.dis[iter+1,]=current.beta.dis
+    
+    #maj de r
+    prop.r=rnorm(1,current.r, prop.sd.r)
+    prop.r=abs(prop.r)
+    mu1=calcul.mu(1,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+    mu2=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+    
+    
+    
+    #print(prop.r)
+    top=sum(dweibull(t_uc, prop.r, mu1, log=TRUE))+dgamma(prop.r, 1, 1/sqrt(0.0001), log = TRUE)+
+      sum(dweibull(t_rc, prop.r, mu2, log=TRUE))+dgamma(prop.r, 1, 1/sqrt(0.0001),log = TRUE)
+    
+    bottom=sum(dweibull(t_uc, current.r, mu1, log=TRUE))+dgamma(current.r, 1, 1/sqrt(0.0001),log = TRUE)+
+      sum(dweibull(t_rc, current.r, mu2, log=TRUE))+dgamma(current.r, 1, 1/sqrt(0.0001),log = TRUE)
+    
+    acc_prob.r <- min(1,exp(top - bottom))
+    if (runif(1) < acc_prob.r){
+      current.r <- prop.r
+      acc.rates.r <- acc.rates.r + 1
+      
+    }   
+    
+    chain.r[iter+1]=current.r
+    
+    #mise à jour de b
+    for (k in 1:NP*2){ 
+      prop.b=current.b
+      prop.b[k]=rnorm(1,current.b[k], prop.sd.b)
+      
+      mu1=calcul.mu(1,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+      mu1.prop=calcul.mu(1,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,prop.b)
+      mu2=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
+      mu2.prop=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,prop.b)
+      
+      top=sum(dweibull(t_uc, current.r, mu1.prop, log=TRUE))+dnorm(prop.b[k], 0, 1/sqrt(current.tau), log = TRUE)+
+        sum(dweibull(t_rc, current.r, mu2.prop, log=TRUE))+dnorm(prop.b[k], 0, 1/sqrt(current.tau),log = TRUE)
+      
+      bottom=sum(dweibull(t_uc, current.r, mu1, log=TRUE))+dnorm(current.b[k], 0, 1/sqrt(current.tau),log = TRUE)+
+        sum(dweibull(t_rc, current.r, mu2, log=TRUE))+dnorm(current.b[k], 0, 1/sqrt(current.tau),log = TRUE)
+      
+      acc_prob.b<- min(1,exp(top - bottom))
+      
+      if (runif(1) < acc_prob.b){
+        current.b <- prop.b
+        acc.rates.b[k] <- acc.rates.b[k] + 1
+        
+      }
+    }
+    
+    chain.b[iter+1,]=current.b
+    
+    #maj de tau
+    prop.tau=rnorm(1,current.tau, prop.sd.tau)
+    prop.tau=abs(prop.tau)
+    top=sum(dnorm(current.b, 0, 1/sqrt(prop.tau), log = TRUE))+dgamma(prop.tau, 0.0001, 1/sqrt(0.0001),log = TRUE)
+    
+    bottom=sum(dnorm(current.b, 0, 1/sqrt(current.tau)), log = TRUE)+dgamma(current.tau, 0.0001, 1/sqrt(0.0001),log = TRUE)
+    
+    acc_prob.tau <- min(1,exp(top - bottom))
+    if (runif(1) < acc_prob.tau){
+      current.tau <- prop.tau
+      acc.rates.tau<- acc.rates.tau + 1
+      
+    }   
+    
+    chain.tau[iter+1]=current.tau
+  }
+  return(list(chain.alpha = chain.alpha, acc.rates.alpha = acc.rates.alpha / nchain, 
+              chain.beta.age = chain.beta.age, acc.rates.beta.age = acc.rates.beta.age / nchain,
+              chain.beta.sex = chain.beta.sex, acc.rates.beta.sex = acc.rates.beta.sex / nchain,
+              chain.beta.dis = chain.beta.dis, acc.rates.beta.dis = acc.rates.beta.dis / nchain,
+              chain.r = chain.r, acc.rates.r = acc.rates.r / nchain,
+              chain.b = chain.b, acc.rates.b = acc.rates.b / nchain,
+              chain.tau = chain.tau, acc.rates.tau = acc.rates.tau/ nchain))
+    
+}
+
+out=kidney(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
+        patient_uc, patient_rc,disease_uc,disease_rc,
+        nchain = 10^4, 
+        prop.sd = c(1,1,1,1,1,1,1,1))
+
+
+plot(out$chain.alpha, type = "l")  
+mean(out$chain.alpha) 
+sd(out$chain.alpha) 
