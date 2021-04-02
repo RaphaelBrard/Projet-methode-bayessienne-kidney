@@ -14,13 +14,13 @@ t_rc <-
   c(149, 22, 113, 5, 54, 6, 13, 8, 70, 25, 4, 159, 108, 24, 46, 
     5, 16, 8) #cens=2
 age_uc <-
-  c(28, 48, 32, 31, 10, 16, 51, 55, 69, 51, 44, 34, 35, 17, 60, 
+  scale(c(28, 48, 32, 31, 10, 16, 51, 55, 69, 51, 44, 34, 35, 17, 60, 
     60, 43, 44, 46, 30, 62, 42, 43, 10, 52, 53, 54, 56, 57, 44, 22, 
     60, 28, 32, 32, 10, 17, 51, 56, 69, 52, 44, 35, 60, 44, 47, 63, 
-    43, 58, 10, 52, 53, 54, 56, 51, 57, 22, 52)
+    43, 58, 10, 52, 53, 54, 56, 51, 57, 22, 52))[1:58]
 age_rc <-
-  c(42, 53, 57, 50, 42, 52, 48, 34, 42, 17, 60, 53, 44, 30, 43, 
-    45, 42, 60)
+  scale(c(42, 53, 57, 50, 42, 52, 48, 34, 42, 17, 60, 53, 44, 30, 43, 
+    45, 42, 60))[1:18]
 sex_uc <-
   c(0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 
     1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 
@@ -45,60 +45,48 @@ disease_rc <-
 
 calcul.mu=function(j,alpha,beta.age,beta.sex,beta.dis,b){
   if (j==1){
-    a=rep(alpha,58)+beta.age*age_uc+beta.sex*sex_uc+beta.dis[1]*(disease_uc==2)*2+beta.dis[2]*(disease_uc==3)*3+beta.dis[3]*(disease_uc==4)*4+b[1:58]
+    a=rep(alpha,58)+beta.age*age_uc+beta.sex*sex_uc+beta.dis[1]*(disease_uc==2)+beta.dis[2]*(disease_uc==3)+beta.dis[3]*(disease_uc==4)+b[1:58]
   }else{
-    a=rep(alpha,18)+beta.age*age_rc+beta.sex*sex_rc+beta.dis[1]*(disease_rc==2)*2+beta.dis[2]*(disease_rc==3)*3+beta.dis[3]*(disease_rc==4)*4+b[59:76]
+    a=rep(alpha,18)+beta.age*age_rc+beta.sex*sex_rc+beta.dis[1]*(disease_rc==2)+beta.dis[2]*(disease_rc==3)+beta.dis[3]*(disease_rc==4)+b[59:76]
   }
   return(exp(a))
 }
-calcul.mu(1,0.90,0.3,0.5,c(0.56,0.57,0.84),rnorm(N_uc,0,1))
 
 
-
-
-kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
-                   patient_uc, patient_rc,disease_uc,disease_rc,
-                   nchain = 10^4, 
-                   prop.sd = c(0.9,0.56,0.57,0.84,0.5,0.17,0.38, 0.5)){
-
-  
-  moyage<-log(mean(c(age_uc,age_rc))) 
-  moysex<-mean(c(sex_uc,sex_rc))
-  moyt<-log(mean(c(t_rc,t_uc)))
-  moydisease<-mean(c(disease_rc,disease_uc))
+kidney <- function(NP,nchain = 10^4, 
+                   prop.sd = c(0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5)){
   
   #initialisation de alpha
   chain.alpha= matrix(NA,nchain+1,1)
-  init.alpha=moyt
+  init.alpha=1
   acc.rates.alpha=0
   chain.alpha[1] <- init.alpha
   prop.sd.alpha=prop.sd[1]
   
   #initialisation des beta.dis
   chain.beta.dis= matrix(NA,nchain+1,3)
-  init.beta.dis=rep(moydisease,3)
+  init.beta.dis=rep(1,3)
   acc.rates.beta.dis=rep(0,3)
   chain.beta.dis[1,] <- init.beta.dis
   prop.sd.beta.dis=c(prop.sd[2],prop.sd[3],prop.sd[4])
 
-  
   #initialisation de beta.sex
   chain.beta.sex= matrix(NA,nchain+1,1)
-  init.beta.sex=moysex
+  init.beta.sex=1
   acc.rates.beta.sex=0
   chain.beta.sex[1] <- init.beta.sex
   prop.sd.beta.sex=prop.sd[5]
  
   #initialisation de beta.age
   chain.beta.age= matrix(NA,nchain+1,1)
-  init.beta.age=moyage
+  init.beta.age=1
   acc.rates.beta.age=0
   chain.beta.age[1] <- init.beta.age
   prop.sd.beta.age=prop.sd[5]
   
   #initialisation de r
   chain.r= matrix(NA,nchain+1,1)
-  init.r=1#pas sur
+  init.r=1
   acc.rates.r=0
   chain.r[1] <- init.r
   prop.sd.r=prop.sd[6] 
@@ -117,10 +105,6 @@ kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
   chain.b[1,] <- init.b
   prop.sd.b=prop.sd[8]
   
-
-  
-  
-    
   for (iter in 1:nchain){
     current.alpha = chain.alpha[iter]
     current.beta.dis=chain.beta.dis[iter,]
@@ -130,7 +114,6 @@ kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
     current.tau=chain.tau[iter]
     current.b=chain.b[iter,]
 
-    
     #maj de alpha
     prop.alpha=rnorm(1,current.alpha, prop.sd.alpha)
     mu1=calcul.mu(1,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
@@ -138,8 +121,6 @@ kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
     mu2=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
     mu2.prop=calcul.mu(2,prop.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
     
-    
-
     top=sum(dweibull(t_uc, current.r, mu1.prop, log=TRUE))+dnorm(prop.alpha, 0, 1/sqrt(0.0001), log = TRUE)+
       sum(dweibull(t_rc, current.r, mu2.prop, log=TRUE))+dnorm(prop.alpha, 0, 1/sqrt(0.0001),log = TRUE)
     
@@ -159,8 +140,6 @@ kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
     mu1.prop=calcul.mu(1,current.alpha,current.beta.age,prop.beta.sex,current.beta.dis,current.b)
     mu2=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
     mu2.prop=calcul.mu(2,current.alpha,current.beta.age,prop.beta.sex,current.beta.dis,current.b)
-    
-    
     
     top=sum(dweibull(t_uc, current.r, mu1.prop, log=TRUE))+dnorm(prop.beta.sex, 0, 1/sqrt(0.0001), log = TRUE)+
       sum(dweibull(t_rc, current.r, mu2.prop, log=TRUE))+dnorm(prop.beta.sex, 0, 1/sqrt(0.0001),log = TRUE)
@@ -182,8 +161,6 @@ kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
     mu2=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
     mu2.prop=calcul.mu(2,current.alpha,prop.beta.age,current.beta.sex,current.beta.dis,current.b)
     
-    
-    
     top=sum(dweibull(t_uc, current.r, mu1.prop, log=TRUE))+dnorm(prop.beta.age, 0, 1/sqrt(0.0001), log = TRUE)+
       sum(dweibull(t_rc, current.r, mu2.prop, log=TRUE))+dnorm(prop.beta.age, 0, 1/sqrt(0.0001),log = TRUE)
     
@@ -194,9 +171,7 @@ kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
     if (runif(1) < acc_prob.beta.age){
       current.beta.age <- prop.beta.age
       acc.rates.beta.age <- acc.rates.beta.age + 1
-      
     }   
-    
     chain.beta.age[iter+1]=current.beta.age
     
     #mise à jour de beta.dis
@@ -223,31 +198,25 @@ kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
         
       }
     }
-    
     chain.beta.dis[iter+1,]=current.beta.dis
     
     #maj de r
-    prop.r=rnorm(1,current.r, prop.sd.r)
-    prop.r=abs(prop.r)
+    prop.r=rlnorm(1,log(current.r), prop.sd.r)
+
     mu1=calcul.mu(1,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
     mu2=calcul.mu(2,current.alpha,current.beta.age,current.beta.sex,current.beta.dis,current.b)
     
+    top=sum(dweibull(t_uc, prop.r, mu1, log=TRUE))+dgamma(prop.r, shape=1, rate=0.001, log = TRUE)+
+      sum(dweibull(t_rc, prop.r, mu2, log=TRUE))+dgamma(prop.r, 1, 0.001,log = TRUE)
     
+    bottom=sum(dweibull(t_uc, current.r, mu1, log=TRUE))+dgamma(current.r, 1, 0.001,log = TRUE)+
+      sum(dweibull(t_rc, current.r, mu2, log=TRUE))+dgamma(current.r, 1, 0.001,log = TRUE)
     
-    #print(prop.r)
-    top=sum(dweibull(t_uc, prop.r, mu1, log=TRUE))+dgamma(prop.r, 1, 1/sqrt(0.0001), log = TRUE)+
-      sum(dweibull(t_rc, prop.r, mu2, log=TRUE))+dgamma(prop.r, 1, 1/sqrt(0.0001),log = TRUE)
-    
-    bottom=sum(dweibull(t_uc, current.r, mu1, log=TRUE))+dgamma(current.r, 1, 1/sqrt(0.0001),log = TRUE)+
-      sum(dweibull(t_rc, current.r, mu2, log=TRUE))+dgamma(current.r, 1, 1/sqrt(0.0001),log = TRUE)
-    
-    acc_prob.r <- min(1,exp(top - bottom))
+    acc_prob.r <- exp(top - bottom)* prop.r / current.r
     if (runif(1) < acc_prob.r){
       current.r <- prop.r
       acc.rates.r <- acc.rates.r + 1
-      
     }   
-    
     chain.r[iter+1]=current.r
     
     #mise à jour de b
@@ -271,25 +240,17 @@ kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
       if (runif(1) < acc_prob.b){
         current.b <- prop.b
         acc.rates.b[k] <- acc.rates.b[k] + 1
-        
       }
     }
-    
     chain.b[iter+1,]=current.b
     
     #maj de tau
-    prop.tau=rnorm(1,current.tau, prop.sd.tau)
-    prop.tau=abs(prop.tau)
-    top=sum(dnorm(current.b, 0, 1/sqrt(prop.tau), log = TRUE))+dgamma(prop.tau, 0.0001, 1/sqrt(0.0001),log = TRUE)
+    update_shape_tau = current.tau +38                
+    update_rate_tau = current.tau + sum(current.b^2)/2
     
-    bottom=sum(dnorm(current.b, 0, 1/sqrt(current.tau)), log = TRUE)+dgamma(current.tau, 0.0001, 1/sqrt(0.0001),log = TRUE)
+    tau = rgamma(1, shape = update_shape_tau, rate = update_rate_tau) 
     
-    acc_prob.tau <- min(1,exp(top - bottom))
-    if (runif(1) < acc_prob.tau){
-      current.tau <- prop.tau
-      acc.rates.tau<- acc.rates.tau + 1
-      
-    }   
+    current.tau <- tau
     
     chain.tau[iter+1]=current.tau
   }
@@ -300,15 +261,87 @@ kidney <- function(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
               chain.r = chain.r, acc.rates.r = acc.rates.r / nchain,
               chain.b = chain.b, acc.rates.b = acc.rates.b / nchain,
               chain.tau = chain.tau, acc.rates.tau = acc.rates.tau/ nchain))
-    
 }
 
-out=kidney(NP,N_uc, N_rc,t_uc,t_rc,age_uc,age_rc,sex_uc,sex_rc,
-        patient_uc, patient_rc,disease_uc,disease_rc,
-        nchain = 10^4, 
-        prop.sd = c(1,1,1,1,1,1,1,1))
+out=kidney(NP)
 
+#on enlève la période de chauffe
+out$chain.alpha<-out$chain.alpha[-(1:1000)]
+out$chain.beta.age<-out$chain.beta.age[-(1:1000)]
+out$chain.beta.sex<-out$chain.beta.sex[-(1:1000)]
+out$chain.beta.dis<-out$chain.beta.dis[-(1:1000),]
+out$chain.r<-out$chain.r[-(1:1000)]
+out$chain.b<-out$chain.b[-(1:1000)]
+out$chain.tau<-out$chain.tau[-(1:1000)]
 
-plot(out$chain.alpha, type = "l")  
+##on vérifie nos résultats
 mean(out$chain.alpha) 
 sd(out$chain.alpha) 
+mean(out$chain.beta.dis[,1]) 
+sd(out$chain.beta.dis[,1]) 
+mean(out$chain.beta.dis[,2]) 
+sd(out$chain.beta.dis[,2])
+mean(out$chain.beta.dis[,3]) 
+sd(out$chain.beta.dis[,3])
+mean(out$chain.beta.sex) 
+sd(out$chain.beta.sex) 
+mean(out$chain.r)
+sd(out$chain.r)
+mean(out$chain.b)
+sd(out$chain.b)
+mean(out$chain.tau)
+sd(out$chain.tau)
+
+#on visualise les chaines
+par(mfrow=c(2,3))
+plot(out$chain.alpha, type = "l")
+plot(out$chain.beta.age, type = "l")
+plot(out$chain.beta.sex, type = "l")
+plot(out$chain.beta.dis[,1], type = "l")
+plot(out$chain.beta.dis[,2], type = "l")
+plot(out$chain.beta.dis[,3], type = "l")
+par(mfrow=c(1,2))
+plot(out$chain.tau, type = "l")
+plot(out$chain.r, type = "l")
+
+#on regarde les acc.rates
+out$acc.rates.alpha
+out$acc.rates.beta.age
+out$acc.rates.beta.sex
+out$acc.rates.beta.dis[1]
+out$acc.rates.beta.dis[2]
+out$acc.rates.beta.dis[3]
+out$acc.rates.r
+
+################## Analyse
+
+## Estimation ponctuelle par moyenne a posteriori
+alpha_hat <- mean(out$chain.alpha)
+beta_age_hat <- mean(out$chain.beta.age)
+beta_sex_hat <- mean(out$chain.beta.sex)
+beta_dis_hat <- colMeans(out$chain.beta.dis)
+r_hat<-mean(out$chain.r)
+b_hat<-mean(out$chain.b)
+
+## Comparaison empirique et paramétrique
+
+library(survival)
+sex<-c(sex_uc,sex_rc)
+# Estimation puis visualiation non paramétrique de la survie
+# en fonction du sexe par Kaplan Meier
+kaplan_meier <- survfit(Surv(c(t_uc,t_rc)) ~ as.factor(sex))
+plot(kaplan_meier, col = 1:2)
+
+
+# Comparaison avec notre estimation
+col <- 1
+for (sex in c(0,1)){
+  shape <- r_hat
+  scale <- exp(alpha_hat+beta_age_hat*c(age_uc,age_rc)+beta_sex_hat*sex+b_hat)
+  
+  f <- function(x)
+    pweibull(x, shape, scale, lower.tail = FALSE)
+  
+  plot(f, from = 0, to = 100, n = 501, add = TRUE, col = col)
+  col <- col + 1
+}
